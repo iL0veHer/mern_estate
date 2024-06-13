@@ -10,7 +10,8 @@ const userSchenma = new mongoose.Schema(
                 validator: function (v) {
                     return /^[a-z0-9_.-]+$/.test(v);
                 },
-                message: (props) => `${props.value} is not a valid username!`,
+                message: (props) =>
+                    `${props.value} is not valid. Use lowercase letters, numbers, '_', '.', or '-'.`,
             },
         },
         email: {
@@ -25,7 +26,6 @@ const userSchenma = new mongoose.Schema(
     },
     { timestamps: true }
 );
-
 
 const User = mongoose.model('User', userSchema);
 
