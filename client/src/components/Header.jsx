@@ -31,9 +31,9 @@ function Header() {
                   </li>
                </Link>
 
-               <Link to="sign-in">
+               <Link to="sign-up">
                   <li className=" text-slate-700 hover:underline cursor-pointer">
-                     Sign In
+                     Sign in
                   </li>
                </Link>
             </ul>
