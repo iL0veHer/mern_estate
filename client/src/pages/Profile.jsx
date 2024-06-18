@@ -1,4 +1,4 @@
-import { useSelector } from 'react-redux';
+import { useDispatch, useSelector } from 'react-redux';
 import { useEffect, useRef, useState } from 'react';
 import {
    getDownloadURL,
@@ -7,17 +7,25 @@ import {
    uploadBytesResumable,
 } from 'firebase/storage';
 import { app } from '../firebase';
+import {
+   updateUserFailure,
+   updateUserStart,
+   updateUserSuccess,
+} from '../redux/user/userSlice';
 
 function Profile() {
-   const { currentUser } = useSelector((state) => state.user);
+   const dispatch = useDispatch();
+   const { currentUser, loading } = useSelector((state) => state.user);
+   const [updateSuccess, setUpdateSuccess] = useState(false);
    const fileRef = useRef(null);
    const [file, setFile] = useState(undefined);
    const [error, setError] = useState(null);
-   const [formData, setFormData] = useState({});
+   const [formData, setFormData] = useState({
+      username: currentUser?.username || '',
+      email: currentUser?.email || '',
+      password: '',
+   });
    const [filePercentage, setFilePercentage] = useState(null);
-   console.log(formData);
-   console.log(filePercentage);
-   console.log(formData);
 
    useEffect(() => {
       if (file) {
@@ -56,10 +64,49 @@ function Profile() {
       );
    };
 
+   const handleChange = (e) => {
+      setFormData({ ...formData, [e.target.id]: e.target.value });
+   };
+
+   const handleSubmit = async (e) => {
+      e.preventDefault();
+
+      if (!currentUser || !currentUser._id) {
+         console.error('User ID is not defined');
+         return;
+      }
+
+      try {
+         dispatch(updateUserStart());
+
+         const response = await fetch(`/api/user/update/${currentUser._id}`, {
+            method: 'PUT',
+            headers: {
+               'Content-Type': 'application/json',
+               Authorization: `Bearer ${document.cookie.access_token}`, // Assuming token is stored in cookies
+            },
+            body: JSON.stringify(formData),
+         });
+
+         const data = await response.json();
+
+         if (!response.ok) {
+            dispatch(updateUserFailure(data.message));
+            console.error('Update failed:', data.message);
+         } else {
+            dispatch(updateUserSuccess(data));
+            setUpdateSuccess(true);
+         }
+      } catch (error) {
+         dispatch(updateUserFailure(error.message));
+         console.error('Fetch error:', error);
+      }
+   };
+
    return (
       <div className="p-3 max-w-lg mx-auto">
          <h1 className="text-3xl font-semibold text-center my-7">Profile</h1>
-         <form className="flex flex-col gap-4">
+         <form onSubmit={handleSubmit} className="flex flex-col gap-4">
             <input
                onChange={(e) => setFile(e.target.files[0])}
                type="file"
@@ -69,14 +116,16 @@ function Profile() {
             />
             <img
                onClick={() => fileRef.current.click()}
-               src={formData.avatar || currentUser.avatar}
+               src={currentUser.avatar}
                alt="Profile"
                className="rounded-full h-24 w-24 object-cover cursor-pointer self-center mt-2"
             />
-            <p className='text-sm self-center'>
+            <p className="text-sm self-center">
                {error ? (
-                  <span className="text-red-700">Error Image Upload (image must be less tahn 2mb)</span>
-               ) : filePercentage > 0  ? (
+                  <span className="text-red-700">
+                     Error Image Upload (image must be less than 2MB)
+                  </span>
+               ) : filePercentage > 0 ? (
                   filePercentage < 100 ? (
                      <span className="text-green-700">{`Uploading ${filePercentage}%`}</span>
                   ) : (
@@ -84,38 +133,50 @@ function Profile() {
                         Image Successfully Uploaded!
                      </span>
                   )
-               ) : 
+               ) : (
                   ''
-               }
+               )}
             </p>
             <input
                type="text"
                placeholder="username"
                id="username"
                className="border p-3 rounded-lg"
+               value={formData.username}
+               onChange={handleChange}
             />
             <input
                type="text"
                placeholder="email"
                id="email"
                className="border p-3 rounded-lg"
+               value={formData.email}
+               onChange={handleChange}
             />
             <input
-               type="text"
+               type="password"
                placeholder="password"
                id="password"
                className="border p-3 rounded-lg"
+               value={formData.password}
+               onChange={handleChange}
             />
-            <button className="bg-slate-700 text-white rounded-lg p-3 uppercase hover:opacity-95 disabled:hover-80">
-               update
+            <button
+               disabled={loading}
+               className="bg-slate-700 text-white rounded-lg p-3 uppercase hover:opacity-95 disabled:hover-80"
+            >
+               {loading ? 'Loading...' : 'Update'}
             </button>
          </form>
          <div className="flex justify-between mt-5">
             <span className="text-red-700 cursor-pointer">Delete Account</span>
             <span className="text-red-700 cursor-pointer">Sign out</span>
          </div>
+         <p className="text-green-700 mt-5">
+            {updateSuccess ? 'User is updated successfully' : ''}
+         </p>
       </div>
-   )
+   );
 }
 
 export default Profile;

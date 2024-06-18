@@ -4,20 +4,23 @@ import bcryptjs from 'bcryptjs';
 
 export const test = (req, res) => {
     res.json({
-        message: 'hellowotld',
+        message: 'helloworld',
     });
 };
 
-export const upadateUserInfo = async (req, res, next) => {
-    if (req.user._id !== req.params.id)
-        return next(errorHandler(401, 'you can inly update your own account'));
+export const updateUserInfo = async (req, res, next) => {
+    console.log(req.user.id)
+    console.log(req.params.id)
+    if (req.user.id !== req.params.id) {
+        return next(errorHandler(401, 'You can only update your own account'));
+    }
 
     try {
         if (req.body.password) {
             req.body.password = bcryptjs.hashSync(req.body.password, 12);
         }
 
-        const updateUser = await User.findById(
+        const updatedUser = await User.findByIdAndUpdate(
             req.params.id,
             {
                 $set: {
@@ -30,10 +33,16 @@ export const upadateUserInfo = async (req, res, next) => {
             { new: true }
         );
 
-        const { password, ...rest } = updateUser._doc;
+        if (!updatedUser) {
+            return next(errorHandler(404, 'User not found'));
+        }
+
+        const { password, ...rest } = updatedUser._doc;
 
         res.status(200).json({
-            rest,
+            success: true,
+            message: 'User updated successfully',
+            user: rest,
         });
     } catch (error) {
         next(error);
